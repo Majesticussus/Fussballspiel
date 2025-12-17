@@ -25,10 +25,16 @@
 .ball{
   position:absolute;
   top:50%;
-  width:22px; height:22px; border-radius:50%;
-  background:#fff;
+  width:24px; height:24px;
+  border-radius:50%;
   transform:translate(-50%,-50%);
+  border: 2px solid rgba(0,0,0,.6);
   box-shadow:0 2px 6px rgba(0,0,0,.35);
+
+  /* Schwarz-weißes Muster */
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.95), rgba(255,255,255,0) 55%),
+    repeating-conic-gradient(#000 0 18deg, #fff 18deg 36deg);
 }
   </style>
 </head>
@@ -41,6 +47,9 @@
   <button onclick="joinGame()">Beitreten</button>
 
   <h3 id="question"></h3>
+  <div id="status" style="margin: 8px 0; font-weight: bold;"></div>
+<button id="nextBtn" style="display:none;">Neue Runde</button>
+<div id="waiting" style="margin-top:6px; color:#555;"></div>
   <div id="answers"></div>
   <div id="pitch" class="pitch">
   <div class="goal goal-left"></div>
@@ -80,23 +89,80 @@
     alert("Spielcode: " + roomCode);
   });
 
-  socket.on("round", data => {
-    document.getElementById("question").innerText = data.question;
-    setBall(data.ball);
-    const div = document.getElementById("answers");
-    div.innerHTML = "";
-    data.options.forEach(v => {
-      const b = document.createElement("button");
-      b.innerText = v;
-      b.onclick = () => socket.emit("answer", { code: roomCode, selected: v });
-      div.appendChild(b);
-    });
-  });
+  let playerIndex = null; // 0 oder 1
 
+socket.on("created", data => {
+  roomCode = data.code;
+  playerIndex = data.playerIndex;
+  alert("Spielcode: " + roomCode);
+});
+
+socket.on("joined", data => {
+  roomCode = data.code;
+  playerIndex = data.playerIndex;
+});
+
+const nextBtn = document.getElementById("nextBtn");
+const statusEl = document.getElementById("status");
+const waitingEl = document.getElementById("waiting");
+
+nextBtn.onclick = () => {
+  nextBtn.disabled = true;
+  waitingEl.innerText = "Warte auf den anderen Spieler …";
+  socket.emit("readyNext", { code: roomCode });
+};
+  
+ socket.on("round", data => {
+  statusEl.innerText = "";
+  waitingEl.innerText = "";
+  nextBtn.style.display = "none";
+  nextBtn.disabled = false;
+
+  document.getElementById("question").innerText = data.question;
+  setBall(data.ball);
+
+  const div = document.getElementById("answers");
+  div.innerHTML = "";
+  data.options.forEach(v => {
+    const b = document.createElement("button");
+    b.innerText = v;
+    b.onclick = () => socket.emit("answer", { code: roomCode, selected: v });
+    div.appendChild(b);
+  });
+});
+  
   socket.on("ball", data => {
     setBall(data.ball);
   });
 
+  socket.on("roundOver", ({ winnerPlayerIndex, isGoal }) => {
+  const won = (playerIndex === winnerPlayerIndex);
+
+  statusEl.innerText = won ? "Du hast gewonnen!" : "Du hast verloren!";
+  if (isGoal) statusEl.innerText += " TOR!";
+
+  nextBtn.style.display = isGoal ? "none" : "block";
+
+  // Antworten deaktivieren
+  document.querySelectorAll("#answers button").forEach(b => b.disabled = true);
+
+  if (!isGoal) {
+    nextBtn.disabled = false;
+    waitingEl.innerText = "Klicke auf „Neue Runde“.";
+  }
+});
+  socket.on("readyCount", ({ count }) => {
+  if (count === 1) waitingEl.innerText = "1/2 bereit – warte auf den anderen Spieler …";
+  if (count === 2) waitingEl.innerText = "2/2 bereit – Runde startet …";
+});
+
+socket.on("waitingNext", ({ message }) => {
+  statusEl.innerText = message || "Bereit für die nächste Runde?";
+  nextBtn.style.display = "block";
+  nextBtn.disabled = false;
+  waitingEl.innerText = "";
+});
+  
   socket.on("gameover", data => {
     alert("Spiel beendet");
   });
