@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rechen-Fußball</title>
+  <style>
+    body { font-family: Arial; padding: 16px; }
+    button { width: 100%; padding: 14px; margin: 6px 0; font-size: 18px; }
+    .bar { height: 20px; background: #222; }
+    .container { max-width: 400px; margin: auto; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Rechen-Fußball</h2>
+
+  <button onclick="createGame()">Spiel erstellen</button>
+  <input id="code" placeholder="Spielcode" />
+  <button onclick="joinGame()">Beitreten</button>
+
+  <h3 id="question"></h3>
+  <div id="answers"></div>
+  <div class="bar" id="ball"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  let roomCode = null;
+
+  function createGame() {
+    socket.emit("create");
+  }
+
+  function joinGame() {
+    const code = document.getElementById("code").value.toUpperCase();
+    socket.emit("join", { code });
+    roomCode = code;
+  }
+
+  socket.on("created", data => {
+    roomCode = data.code;
+    alert("Spielcode: " + roomCode);
+  });
+
+  socket.on("round", data => {
+    document.getElementById("question").innerText = data.question;
+    document.getElementById("ball").style.width = data.ball + "%";
+    const div = document.getElementById("answers");
+    div.innerHTML = "";
+    data.options.forEach(v => {
+      const b = document.createElement("button");
+      b.innerText = v;
+      b.onclick = () => socket.emit("answer", { code: roomCode, value: v });
+      div.appendChild(b);
+    });
+  });
+
+  socket.on("ball", data => {
+    document.getElementById("ball").style.width = data.ball + "%";
+  });
+
+  socket.on("gameover", data => {
+    alert("Spiel beendet");
+  });
+</script>
+</body>
+</html>
