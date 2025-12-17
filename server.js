@@ -89,28 +89,7 @@ function startRound(roomCode) {
   });
 }
 
-  // Spieler 0 schiebt Richtung 100, Spieler 1 Richtung 0
-  const idx = room.players.indexOf(winnerSocketId);
-  const step = 10; // Ball-Schub pro gewonnener Aufgabe (in Prozentpunkten)
-
-  if (idx === 0) room.ball = Math.min(100, room.ball + step);
-  if (idx === 1) room.ball = Math.max(0, room.ball - step);
-
-  // Prüfen auf Tor
-  let winner = null;
-  if (room.ball >= 100) winner = 0;
-  if (room.ball <= 0) winner = 1;
-
-  io.to(roomCode).emit("ball", { ball: room.ball });
-
-  if (winner !== null) {
-    io.to(roomCode).emit("gameover", { winnerPlayerIndex: winner });
-    // Optional: Raum zurücksetzen / löschen
-    // rooms.delete(roomCode);
-  } else {
-    setTimeout(() => startRound(roomCode), 700);
-  }
-}
+  
 
 io.on("connection", (socket) => {
   socket.on("create", () => {
