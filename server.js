@@ -74,7 +74,8 @@ function genRoomCode() {
 function startRound(roomCode) {
   const room = rooms.get(roomCode);
   if (!room) return;
-
+  
+  room.roundLocked = false;
   room.currentQ = makeQuestion();
   room.startAtMs = Date.now();
   room.answered = new Set();
@@ -118,7 +119,7 @@ io.on("connection", (socket) => {
     let code;
     do { code = genRoomCode(); } while (rooms.has(code));
 
-    rooms.set(code, { players: [socket.id], ball: 50, currentQ: null, startAtMs: 0, answered: new Set() });
+    rooms.set(code, { players: [socket.id], ball: 50, currentQ: null, startAtMs: 0, answered: new Set(), roundLocked: false });
     socket.join(code);
 
     socket.emit("created", { code, playerIndex: 0 });
@@ -138,7 +139,8 @@ io.on("connection", (socket) => {
     startRound(code);
   });
 
-  socket.on("answer", ({ code, selected }) => {
+  socket.on("answer", ({ code, selected }) => { 
+  console.log("ANSWER RECEIVED:", { code, selected, from: socket.id });  
   const room = rooms.get(code);
   if (!room || !room.currentQ) return;
 
