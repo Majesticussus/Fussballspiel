@@ -58,6 +58,16 @@
   function createGame() {
     socket.emit("create");
   }
+  function setBall(ballPercent){
+  const pitch = document.getElementById("pitch");
+  const ball = document.getElementById("ball");
+  if (!pitch || !ball) return;
+
+  const w = pitch.clientWidth;
+  const pad = 18;
+  const x = pad + (ballPercent / 100) * (w - 2 * pad);
+  ball.style.left = x + "px";
+}
 
   function joinGame() {
     const code = document.getElementById("code").value.toUpperCase();
@@ -72,7 +82,7 @@
 
   socket.on("round", data => {
     document.getElementById("question").innerText = data.question;
-    document.getElementById("ball").style.width = data.ball + "%";
+    setBall(data.ball);
     const div = document.getElementById("answers");
     div.innerHTML = "";
     data.options.forEach(v => {
@@ -84,7 +94,7 @@
   });
 
   socket.on("ball", data => {
-    document.getElementById("ball").style.width = data.ball + "%";
+    setBall(data.ball);
   });
 
   socket.on("gameover", data => {
