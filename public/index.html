@@ -9,6 +9,27 @@
     button { width: 100%; padding: 14px; margin: 6px 0; font-size: 18px; }
     .bar { height: 20px; background: #222; }
     .container { max-width: 400px; margin: auto; }
+    .pitch{
+  position: relative;
+  width: 100%;
+  height: 180px;
+  border: 2px solid #2a2a2a;
+  border-radius: 14px;
+  margin: 12px 0;
+  background: linear-gradient(0deg, #1f7a1f, #2aa52a);
+  overflow: hidden;
+}
+.midline{ position:absolute; left:50%; top:0; width:2px; height:100%; background:rgba(255,255,255,.6); }
+.goal{ position:absolute; top:50%; width:18px; height:70px; transform:translateY(-50%); background:rgba(255,255,255,.85); }
+.goal-left{ left:0; } .goal-right{ right:0; }
+.ball{
+  position:absolute;
+  top:50%;
+  width:22px; height:22px; border-radius:50%;
+  background:#fff;
+  transform:translate(-50%,-50%);
+  box-shadow:0 2px 6px rgba(0,0,0,.35);
+}
   </style>
 </head>
 <body>
@@ -21,7 +42,12 @@
 
   <h3 id="question"></h3>
   <div id="answers"></div>
-  <div class="bar" id="ball"></div>
+  <div id="pitch" class="pitch">
+  <div class="goal goal-left"></div>
+  <div class="midline"></div>
+  <div class="goal goal-right"></div>
+  <div id="ball" class="ball"></div>
+</div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -52,7 +78,7 @@
     data.options.forEach(v => {
       const b = document.createElement("button");
       b.innerText = v;
-      b.onclick = () => socket.emit("answer", { code: roomCode, value: v });
+      b.onclick = () => socket.emit("answer", { code: roomCode, selected: v });
       div.appendChild(b);
     });
   });
