@@ -139,43 +139,48 @@ io.on("connection", (socket) => {
   });
 
   socket.on("answer", ({ code, selected }) => {
-    const room = rooms.get(code);
-    if (!room || !room.currentQ) return;
-    if (!room.players.includes(socket.id)) return;
+  const room = rooms.get(code);
+  if (!room || !room.currentQ) return;
 
-    // pro Spieler nur eine Wertung pro Runde
-    if (room.answered.has(socket.id)) return;
+  // nur Spieler im Raum dürfen antworten
+  if (!room.players.includes(socket.id)) return;
 
-    const now = Date.now();
-    const rt = now - room.startAtMs;
-    room.answered.add(socket.id);
+  // nur eine Runde gleichzeitig werten (erste korrekte Antwort gewinnt)
+  if (room.roundLocked) return;
 
-    const correct = selected === room.currentQ.answer;
+  const picked = Number(selected);           // <<< wichtig (String -> Number)
+  const correct = picked === room.currentQ.answer;
 
-    // Rückmeldung an den Antwortenden
-    socket.emit("answerResult", { correct, rt });
+  // Feedback an den Antwortenden
+  socket.emit("answerResult", { correct });
 
-    if (!correct) return;
+  if (!correct) return;
 
-    // Wenn korrekt: prüfen, ob bereits jemand gewonnen hat (erste korrekte Antwort zählt)
-    // Wir lösen das so: sobald erste korrekte Antwort eintrifft, wird Ball bewegt und nächste Runde gestartet.
-    // Dazu müssen wir verhindern, dass eine zweite korrekte Antwort "durchrutscht".
-    if (room._roundLocked) return;
-    room._roundLocked = true;
+  // Runde sperren: erste korrekte Antwort gewinnt
+  room.roundLocked = true;
 
-    io.to(code).emit("roundWinner", {
-      winnerPlayerIndex: room.players.indexOf(socket.id),
-      rt
-    });
+  const winnerIndex = room.players.indexOf(socket.id);
+  io.to(code).emit("roundWinner", { winnerPlayerIndex: winnerIndex });
 
-    pushBall(code, socket.id);
+  // Ball bewegen
+  const step = 10;
+  if (winnerIndex === 0) room.ball = Math.min(100, room.ball + step);
+  else room.ball = Math.max(0, room.ball - step);
 
-    // Lock nach kurzer Zeit wieder lösen, sobald neue Runde startet
-    setTimeout(() => {
-      if (rooms.get(code)) rooms.get(code)._roundLocked = false;
-    }, 300);
-  });
+  io.to(code).emit("ball", { ball: room.ball });
 
+  // Tor?
+  if (room.ball >= 100 || room.ball <= 0) {
+    io.to(code).emit("gameover", { winnerPlayerIndex: winnerIndex });
+    return;
+  }
+
+  // nächste Runde starten
+  setTimeout(() => {
+    room.roundLocked = false;
+    startRound(code);
+  }, 800);
+});
   socket.on("disconnect", () => {
     // Räume bereinigen, in denen dieser Socket war
     for (const [code, room] of rooms.entries()) {
