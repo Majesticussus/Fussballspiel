@@ -72,11 +72,11 @@ function genRoomCode() {
 }
 
 function startRound(roomCode) {
-  if (room.waitingForNext) return;
-room.roundLocked = false;
   const room = rooms.get(roomCode);
   if (!room) return;
-  
+
+  if (room.waitingForNext) return;
+
   room.roundLocked = false;
   room.currentQ = makeQuestion();
   room.startAtMs = Date.now();
@@ -88,10 +88,6 @@ room.roundLocked = false;
     ball: room.ball
   });
 }
-
-function pushBall(roomCode, winnerSocketId) {
-  const room = rooms.get(roomCode);
-  if (!room) return;
 
   // Spieler 0 schiebt Richtung 100, Spieler 1 Richtung 0
   const idx = room.players.indexOf(winnerSocketId);
