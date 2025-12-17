@@ -86,16 +86,6 @@ function startRound(roomCode) {
     ball: room.ball
   });
 }
-function setBall(ballPercent){
-  const pitch = document.getElementById("pitch");
-  const ball = document.getElementById("ball");
-  if (!pitch || !ball) return;
-
-  const w = pitch.clientWidth;
-  const pad = 18;
-  const x = pad + (ballPercent / 100) * (w - 2 * pad);
-  ball.style.left = x + "px";
-}
 
 function pushBall(roomCode, winnerSocketId) {
   const room = rooms.get(roomCode);
