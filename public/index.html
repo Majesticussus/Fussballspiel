@@ -1,171 +1,269 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rechen-Fußball</title>
   <style>
-    body { font-family: Arial; padding: 16px; }
-    button { width: 100%; padding: 14px; margin: 6px 0; font-size: 18px; }
-    .bar { height: 20px; background: #222; }
-    .container { max-width: 400px; margin: auto; }
-    .pitch{
-  position: relative;
-  width: 100%;
-  height: 180px;
-  border: 2px solid #2a2a2a;
-  border-radius: 14px;
-  margin: 12px 0;
-  background: linear-gradient(0deg, #1f7a1f, #2aa52a);
-  overflow: hidden;
-}
-.midline{ position:absolute; left:50%; top:0; width:2px; height:100%; background:rgba(255,255,255,.6); }
-.goal{ position:absolute; top:50%; width:18px; height:70px; transform:translateY(-50%); background:rgba(255,255,255,.85); }
-.goal-left{ left:0; } .goal-right{ right:0; }
-.ball{
-  position:absolute;
-  top:50%;
-  width:24px; height:24px;
-  border-radius:50%;
-  transform:translate(-50%,-50%);
-  border: 2px solid rgba(0,0,0,.6);
-  box-shadow:0 2px 6px rgba(0,0,0,.35);
+    body { font-family: system-ui, Arial; margin: 16px; }
+    .container { max-width: 420px; margin: 0 auto; }
+    .card { border: 1px solid #ddd; border-radius: 14px; padding: 12px; margin: 12px 0; }
+    button { width: 100%; padding: 14px; margin: 6px 0; border-radius: 12px; border: 1px solid #ccc; font-size: 18px; }
+    input { width: 100%; padding: 12px; font-size: 18px; border-radius: 12px; border: 1px solid #ccc; box-sizing: border-box; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+    .small { color: #555; font-size: 14px; }
 
-  /* Schwarz-weißes Muster */
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,.95), rgba(255,255,255,0) 55%),
-    repeating-conic-gradient(#000 0 18deg, #fff 18deg 36deg);
-}
+    /* Spielfeld */
+    .pitch{
+      position: relative;
+      width: 100%;
+      height: 190px;
+      border: 2px solid #2a2a2a;
+      border-radius: 14px;
+      margin: 12px 0;
+      background: linear-gradient(0deg, #1f7a1f, #2aa52a);
+      overflow: hidden;
+    }
+    .midline{ position:absolute; left:50%; top:0; width:2px; height:100%; background:rgba(255,255,255,.6); }
+    .goal{
+      position: absolute;
+      top: 50%;
+      width: 18px;
+      height: 74px;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,.9);
+    }
+    .goal-left{ left: 0; border-right: 2px solid rgba(0,0,0,.2); }
+    .goal-right{ right: 0; border-left: 2px solid rgba(0,0,0,.2); }
+
+    /* Fußball (schwarz/weiß) */
+    .ball{
+      position:absolute;
+      top:50%;
+      width:26px; height:26px;
+      border-radius:50%;
+      transform:translate(-50%,-50%);
+      border: 2px solid rgba(0,0,0,.6);
+      box-shadow:0 2px 6px rgba(0,0,0,.35);
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.95), rgba(255,255,255,0) 55%),
+        repeating-conic-gradient(#000 0 18deg, #fff 18deg 36deg);
+    }
+
+    /* Popup/Modal */
+    .overlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 999;
+    }
+    .modal{
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 14px;
+      border: 1px solid #ddd;
+    }
+    .modal h3{ margin: 0 0 8px 0; }
+    .modal p{ margin: 6px 0; }
   </style>
 </head>
+
 <body>
-<div class="container">
-  <h2>Rechen-Fußball</h2>
+  <div class="container">
+    <h2>Rechen-Fußball</h2>
 
-  <button onclick="createGame()">Spiel erstellen</button>
-  <input id="code" placeholder="Spielcode" />
-  <button onclick="joinGame()">Beitreten</button>
+    <div class="card" id="lobby">
+      <div class="row">
+        <button id="btnCreate">Spiel erstellen</button>
+        <div>
+          <input id="codeInput" placeholder="Spielcode eingeben" />
+          <button id="btnJoin">Beitreten</button>
+        </div>
+      </div>
+      <p class="small" id="status"></p>
+    </div>
 
-  <h3 id="question"></h3>
-  <div id="status" style="margin: 8px 0; font-weight: bold;"></div>
-<button id="nextBtn" style="display:none;">Neue Runde</button>
-<div id="waiting" style="margin-top:6px; color:#555;"></div>
-  <div id="answers"></div>
-  <div id="pitch" class="pitch">
-  <div class="goal goal-left"></div>
-  <div class="midline"></div>
-  <div class="goal goal-right"></div>
-  <div id="ball" class="ball"></div>
-</div>
-</div>
+    <div class="card" id="game" style="display:none;">
+      <div><b>Spielcode:</b> <span id="codeLabel"></span></div>
+      <div><b>Du bist Spieler:</b> <span id="playerLabel"></span></div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const socket = io();
-  let roomCode = null;
+      <div id="pitch" class="pitch">
+        <div class="goal goal-left"></div>
+        <div class="midline"></div>
+        <div class="goal goal-right"></div>
+        <div id="ball" class="ball"></div>
+      </div>
 
-  function createGame() {
-    socket.emit("create");
-  }
-  function setBall(ballPercent){
-  const pitch = document.getElementById("pitch");
-  const ball = document.getElementById("ball");
-  if (!pitch || !ball) return;
+      <h3 id="question">Warte auf Start …</h3>
+      <div id="answers"></div>
 
-  const w = pitch.clientWidth;
-  const pad = 18;
-  const x = pad + (ballPercent / 100) * (w - 2 * pad);
-  ball.style.left = x + "px";
-}
+      <p class="small" id="info"></p>
+    </div>
+  </div>
 
-  function joinGame() {
-    const code = document.getElementById("code").value.toUpperCase();
-    socket.emit("join", { code });
-    roomCode = code;
-  }
+  <!-- Popup -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h3 id="modalTitle">Info</h3>
+      <p id="modalText"></p>
+      <p class="small" id="readyText"></p>
+      <button id="btnReady">Neue Runde</button>
+    </div>
+  </div>
 
-  socket.on("created", data => {
-    roomCode = data.code;
-    alert("Spielcode: " + roomCode);
-  });
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
 
-  let playerIndex = null; // 0 oder 1
+    let roomCode = null;
+    let playerIndex = null;
 
-socket.on("created", data => {
-  roomCode = data.code;
-  playerIndex = data.playerIndex;
-  alert("Spielcode: " + roomCode);
-});
+    const lobby = document.getElementById("lobby");
+    const game = document.getElementById("game");
 
-socket.on("joined", data => {
-  roomCode = data.code;
-  playerIndex = data.playerIndex;
-});
+    const statusEl = document.getElementById("status");
+    const codeLabel = document.getElementById("codeLabel");
+    const playerLabel = document.getElementById("playerLabel");
 
-const nextBtn = document.getElementById("nextBtn");
-const statusEl = document.getElementById("status");
-const waitingEl = document.getElementById("waiting");
+    const questionEl = document.getElementById("question");
+    const answersEl = document.getElementById("answers");
+    const infoEl = document.getElementById("info");
 
-nextBtn.onclick = () => {
-  nextBtn.disabled = true;
-  waitingEl.innerText = "Warte auf den anderen Spieler …";
-  socket.emit("readyNext", { code: roomCode });
-};
-  
- socket.on("round", data => {
-  statusEl.innerText = "";
-  waitingEl.innerText = "";
-  nextBtn.style.display = "none";
-  nextBtn.disabled = false;
+    const overlay = document.getElementById("overlay");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalText = document.getElementById("modalText");
+    const readyText = document.getElementById("readyText");
+    const btnReady = document.getElementById("btnReady");
 
-  document.getElementById("question").innerText = data.question;
-  setBall(data.ball);
+    document.getElementById("btnCreate").onclick = () => socket.emit("create");
+    document.getElementById("btnJoin").onclick = () => {
+      const c = document.getElementById("codeInput").value.trim().toUpperCase();
+      socket.emit("join", { code: c });
+    };
 
-  const div = document.getElementById("answers");
-  div.innerHTML = "";
-  data.options.forEach(v => {
-    const b = document.createElement("button");
-    b.innerText = v;
-    b.onclick = () => socket.emit("answer", { code: roomCode, selected: v });
-    div.appendChild(b);
-  });
-});
-  
-  socket.on("ball", data => {
-    setBall(data.ball);
-  });
+    function showGame() {
+      lobby.style.display = "none";
+      game.style.display = "block";
+      codeLabel.textContent = roomCode;
+      playerLabel.textContent = (playerIndex + 1);
+    }
 
-  socket.on("roundOver", ({ winnerPlayerIndex, isGoal }) => {
-  const won = (playerIndex === winnerPlayerIndex);
+    function openModal(title, text, buttonLabel) {
+      modalTitle.textContent = title;
+      modalText.textContent = text;
+      btnReady.textContent = buttonLabel || "Neue Runde";
+      btnReady.disabled = false;
+      readyText.textContent = "";
+      overlay.style.display = "flex";
+    }
 
-  statusEl.innerText = won ? "Du hast gewonnen!" : "Du hast verloren!";
-  if (isGoal) statusEl.innerText += " TOR!";
+    function closeModal() {
+      overlay.style.display = "none";
+    }
 
-  nextBtn.style.display = isGoal ? "none" : "block";
+    function setBall(ballPercent) {
+      const pitch = document.getElementById("pitch");
+      const ball = document.getElementById("ball");
+      if (!pitch || !ball) return;
 
-  // Antworten deaktivieren
-  document.querySelectorAll("#answers button").forEach(b => b.disabled = true);
+      const w = pitch.clientWidth;
+      const pad = 18; // Torbreite
+      const x = pad + (ballPercent / 100) * (w - 2 * pad);
+      ball.style.left = x + "px";
+    }
 
-  if (!isGoal) {
-    nextBtn.disabled = false;
-    waitingEl.innerText = "Klicke auf „Neue Runde“.";
-  }
-});
-  socket.on("readyCount", ({ count }) => {
-  if (count === 1) waitingEl.innerText = "1/2 bereit – warte auf den anderen Spieler …";
-  if (count === 2) waitingEl.innerText = "2/2 bereit – Runde startet …";
-});
+    function renderAnswers(options) {
+      answersEl.innerHTML = "";
+      options.forEach(v => {
+        const b = document.createElement("button");
+        b.textContent = v;
+        b.onclick = () => {
+          // Disable nach Klick (gegen Spam)
+          [...answersEl.querySelectorAll("button")].forEach(x => x.disabled = true);
+          socket.emit("answer", { code: roomCode, selected: v });
+        };
+        answersEl.appendChild(b);
+      });
+    }
 
-socket.on("waitingNext", ({ message }) => {
-  statusEl.innerText = message || "Bereit für die nächste Runde?";
-  nextBtn.style.display = "block";
-  nextBtn.disabled = false;
-  waitingEl.innerText = "";
-});
-  
-  socket.on("gameover", data => {
-    alert("Spiel beendet");
-  });
-</script>
+    btnReady.onclick = () => {
+      btnReady.disabled = true;
+      readyText.textContent = "Warte auf den anderen Spieler …";
+      socket.emit("readyNext", { code: roomCode });
+    };
+
+    socket.on("created", ({ code, playerIndex: idx }) => {
+      roomCode = code;
+      playerIndex = idx;
+      statusEl.textContent = "Erstellt. Teile den Code mit Spieler 2.";
+      showGame();
+    });
+
+    socket.on("joined", ({ code, playerIndex: idx }) => {
+      roomCode = code;
+      playerIndex = idx;
+      statusEl.textContent = "Beigetreten.";
+      showGame();
+    });
+
+    socket.on("ready", ({ message }) => {
+      infoEl.textContent = message || "";
+    });
+
+    socket.on("waitingNext", ({ message }) => {
+      // Popup anzeigen (Start oder nach Tor)
+      openModal("Bereit?", message || "Beide Spieler müssen bereit sein.", "Neue Runde");
+    });
+
+    socket.on("readyCount", ({ count }) => {
+      if (count === 1) readyText.textContent = "1/2 bereit …";
+      if (count >= 2) readyText.textContent = "2/2 bereit – es geht los …";
+    });
+
+    socket.on("round", ({ question, options, ball }) => {
+      closeModal();
+      infoEl.textContent = "";
+      questionEl.textContent = question;
+      setBall(ball);
+      renderAnswers(options);
+    });
+
+    socket.on("ball", ({ ball }) => {
+      setBall(ball);
+    });
+
+    socket.on("answerResult", ({ correct }) => {
+      infoEl.textContent = correct ? "Richtig!" : "Falsch!";
+    });
+
+    socket.on("gameover", ({ winnerPlayerIndex }) => {
+      const won = (playerIndex === winnerPlayerIndex);
+      openModal("Tor!", won ? "Du hast gewonnen!" : "Du hast verloren!", "Neue Runde");
+
+      // Antworten deaktivieren
+      [...answersEl.querySelectorAll("button")].forEach(x => x.disabled = true);
+      questionEl.textContent = "Warte auf neue Runde …";
+    });
+
+    socket.on("errorMsg", ({ message }) => {
+      statusEl.textContent = message;
+      infoEl.textContent = message;
+      openModal("Hinweis", message, "OK");
+      btnReady.onclick = () => { closeModal(); btnReady.onclick = () => {
+        btnReady.disabled = true;
+        readyText.textContent = "Warte auf den anderen Spieler …";
+        socket.emit("readyNext", { code: roomCode });
+      }; };
+    });
+
+    // Ball initial mittig, falls Layout erst nach Render verfügbar
+    window.addEventListener("resize", () => setBall(50));
+  </script>
 </body>
 </html>
