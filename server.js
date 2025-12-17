@@ -157,30 +157,22 @@ io.on("connection", (socket) => {
     io.to(code).emit("waitingNext", { message: "Bereit für die nächste Runde?" });
   });
 
-  socket.on("answer", ({ code, selected }) => { 
-  console.log("ANSWER RECEIVED:", { code, selected, from: socket.id });  
+  socket.on("answer", ({ code, selected }) => {
   const room = rooms.get(code);
   if (!room || !room.currentQ) return;
-
-  // nur Spieler im Raum dürfen antworten
   if (!room.players.includes(socket.id)) return;
-
-  // nur eine Runde gleichzeitig werten (erste korrekte Antwort gewinnt)
+  if (room.waitingForNext) return;       // NEU: während Warten keine Antworten
   if (room.roundLocked) return;
 
-  const picked = Number(selected);           // <<< wichtig (String -> Number)
+  const picked = Number(selected);
   const correct = picked === room.currentQ.answer;
 
-  // Feedback an den Antwortenden
   socket.emit("answerResult", { correct });
-
   if (!correct) return;
 
-  // Runde sperren: erste korrekte Antwort gewinnt
   room.roundLocked = true;
 
   const winnerIndex = room.players.indexOf(socket.id);
-  io.to(code).emit("roundWinner", { winnerPlayerIndex: winnerIndex });
 
   // Ball bewegen
   const step = 10;
@@ -189,26 +181,23 @@ io.on("connection", (socket) => {
 
   io.to(code).emit("ball", { ball: room.ball });
 
-  // Tor?
-const isGoal = (room.ball >= 100 || room.ball <= 0);
+  const isGoal = (room.ball >= 100 || room.ball <= 0);
 
-io.to(code).emit("roundOver", {
-  winnerPlayerIndex: winnerIndex,
-  isGoal,
-  ball: room.ball
-});
+  io.to(code).emit("roundOver", {
+    winnerPlayerIndex: winnerIndex,
+    isGoal,
+    ball: room.ball
+  });
 
-if (isGoal) {
-  io.to(code).emit("gameover", { winnerPlayerIndex: winnerIndex });
-  return;
-}
-
-// warten auf "Neue Runde" von beiden
-room.waitingForNext = true;
-room.nextReady = new Set();
+  if (isGoal) {
+    io.to(code).emit("gameover", { winnerPlayerIndex: winnerIndex });
+    return;
   }
 
- });
+  // Warten auf "Neue Runde" von beiden
+  room.waitingForNext = true;
+  room.nextReady = new Set();
+});
   socket.on("disconnect", () => {
     // Räume bereinigen, in denen dieser Socket war
     for (const [code, room] of rooms.entries()) {
