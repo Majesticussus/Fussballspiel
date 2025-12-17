@@ -72,6 +72,8 @@ function genRoomCode() {
 }
 
 function startRound(roomCode) {
+  if (room.waitingForNext) return;
+room.roundLocked = false;
   const room = rooms.get(roomCode);
   if (!room) return;
   
@@ -119,11 +121,29 @@ io.on("connection", (socket) => {
     let code;
     do { code = genRoomCode(); } while (rooms.has(code));
 
-    rooms.set(code, { players: [socket.id], ball: 50, currentQ: null, startAtMs: 0, answered: new Set(), roundLocked: false });
+    rooms.set(code, { players: [socket.id], ball: 50, currentQ: null, startAtMs: 0, answered: new Set(), roundLocked: false, waitingForNext: true, nextReady: new Set() });
     socket.join(code);
 
     socket.emit("created", { code, playerIndex: 0 });
   });
+
+  socket.on("readyNext", ({ code }) => {
+  const room = rooms.get(code);
+  if (!room) return;
+  if (!room.players.includes(socket.id)) return;
+
+  if (!room.nextReady) room.nextReady = new Set();
+  room.nextReady.add(socket.id);
+
+  // optional: an alle senden, wie viele bereit sind
+  io.to(code).emit("readyCount", { count: room.nextReady.size });
+
+  if (room.nextReady.size >= 2) {
+    room.waitingForNext = false;
+    room.nextReady = new Set();
+    startRound(code);
+  }
+});
 
   socket.on("join", ({ code }) => {
     const room = rooms.get(code);
@@ -136,7 +156,9 @@ io.on("connection", (socket) => {
     socket.emit("joined", { code, playerIndex: 1 });
     io.to(code).emit("ready", { message: "Beide Spieler sind da. Start!" });
 
-    startRound(code);
+    room.waitingForNext = true;
+    room.nextReady = new Set();
+    io.to(code).emit("waitingNext", { message: "Bereit für die nächste Runde?" });
   });
 
   socket.on("answer", ({ code, selected }) => { 
@@ -172,17 +194,25 @@ io.on("connection", (socket) => {
   io.to(code).emit("ball", { ball: room.ball });
 
   // Tor?
-  if (room.ball >= 100 || room.ball <= 0) {
-    io.to(code).emit("gameover", { winnerPlayerIndex: winnerIndex });
-    return;
+const isGoal = (room.ball >= 100 || room.ball <= 0);
+
+io.to(code).emit("roundOver", {
+  winnerPlayerIndex: winnerIndex,
+  isGoal,
+  ball: room.ball
+});
+
+if (isGoal) {
+  io.to(code).emit("gameover", { winnerPlayerIndex: winnerIndex });
+  return;
+}
+
+// warten auf "Neue Runde" von beiden
+room.waitingForNext = true;
+room.nextReady = new Set();
   }
 
-  // nächste Runde starten
-  setTimeout(() => {
-    room.roundLocked = false;
-    startRound(code);
-  }, 800);
-});
+ });
   socket.on("disconnect", () => {
     // Räume bereinigen, in denen dieser Socket war
     for (const [code, room] of rooms.entries()) {
